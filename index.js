@@ -36,28 +36,47 @@ async function run() {
 
         // jwt 
 
-        app.get('/jwt', async(req, res) =>{
+        app.get('/jwt', async (req, res) => {
             const email = req.query.email;
-            const query = { email : email};
+            const query = { email: email };
             const user = await userCollections.findOne(query);
-            if(user){
-                const token = jwt.sign({email}, process.env.ACCESS_TOKEN, {expiresIn: '1d'})
-                return res.send({accessToken : token});
+            if (user) {
+                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '1d' })
+                return res.send({ accessToken: token });
             }
-            res.status(403).send({accessToken: ''})
+            res.status(403).send({ accessToken: '' })
         })
 
 
         // users 
 
-        app.get('/users', async(req, res) =>{
-            const query = {};
+        app.get('/users/buyer', async (req, res) => {
+            const query = { userCategory: 'Buyer' };
+            const users = await userCollections.find(query).toArray();
+            res.send(users)
+        })
+        app.get('/users/seller', async (req, res) => {
+            const query = { userCategory: 'Seller' };
             const users = await userCollections.find(query).toArray();
             res.send(users)
         })
 
 
         app.post('/users', async (req, res) => {
+            const email = req.body.email;
+            const query = { email: email }
+            const alreadyExist = await userCollections.findOne(query)
+            if (alreadyExist) {
+                const filter = {email : email}
+                const options = { upsert: true };
+                const updatedDoc = {
+                    $set: {
+                        email: email
+                    }
+                }
+                const result = await userCollections.updateOne(filter, updatedDoc, options);
+                return res.send(result);
+            }
             const user = req.body;
             const result = await userCollections.insertOne(user);
             res.send(result);
