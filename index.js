@@ -261,6 +261,14 @@ async function run() {
 
 
         // bookings 
+
+        app.get('/bookings/:id' , async(req, res) =>{
+            const id = req.params.id;
+            const query = {_id : ObjectId(id)};
+            const result = await bookingCollections.findOne(query);
+            res.send(result)
+        })
+
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
             const result = await bookingCollections.insertOne(booking);
