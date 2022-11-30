@@ -50,7 +50,18 @@ async function run() {
             const decodedEmail = req.decoded.email;
             const query = { email: decodedEmail }
             const user = await userCollections.findOne(query)
-            if (user.role !== 'admin') {
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+
+        }
+
+        const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail }
+            const user = await userCollections.findOne(query)
+            if (user.userCategory !== 'Seller') {
                 return res.status(403).send({ message: 'forbidden access' })
             }
             next();
@@ -72,20 +83,20 @@ async function run() {
             res.send(reportedBike)
         })
 
-        app.get('/bikes/myorders/:email', async (req, res) => {
+        app.get('/bikes/myorders/:email',veifyJWT, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const myProducts = await bikeCollections.find(query).toArray();
             res.send(myProducts);
         })
 
-        app.post('/bikes', async (req, res) => {
+        app.post('/bikes',veifyJWT, verifySeller, async (req, res) => {
             const bike = req.body;
             const result = await bikeCollections.insertOne(bike);
             res.send(result)
         })
 
-        app.put('/bikes/reported/:id', async (req, res) => {
+        app.put('/bikes/reported/:id',veifyJWT, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
             const options = { upsert: true };
@@ -99,7 +110,7 @@ async function run() {
 
         })
 
-        app.put('/bikes/:id', async (req, res) => {
+        app.put('/bikes/:id',veifyJWT, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
             const options = { upsert: true };
@@ -112,7 +123,21 @@ async function run() {
             res.send(result);
         })
 
-        app.delete('/bikes/:id', async (req, res) => {
+        app.put('/bikes/verify/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = {email: email };
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    isVerified: 'verified'
+                }
+            }
+            const result = await bikeCollections.updateMany(filter, updatedDoc, options);
+            res.send(result);
+
+        })
+
+        app.delete('/bikes/:id', veifyJWT, verifySeller, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
             const result = await bikeCollections.deleteOne(filter);
@@ -136,12 +161,12 @@ async function run() {
 
         // users 
 
-        app.get('/users/buyer', veifyJWT, async (req, res) => {
+        app.get('/users/buyer', veifyJWT, verifyAdmin, async (req, res) => {
             const query = { userCategory: 'Buyer' };
             const users = await userCollections.find(query).toArray();
             res.send(users)
         })
-        app.get('/users/seller', veifyJWT, async (req, res) => {
+        app.get('/users/seller', veifyJWT, verifyAdmin, async (req, res) => {
             const query = { userCategory: 'Seller' };
             const users = await userCollections.find(query).toArray();
             res.send(users)
@@ -155,7 +180,7 @@ async function run() {
         })
 
 
-        app.get('/users/admin/:email', async (req, res) => {
+        app.get('/users/admin/:email',veifyJWT, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const user = await userCollections.findOne(query);
@@ -199,22 +224,22 @@ async function run() {
             res.send(result);
         })
 
-        app.put('/users/admin/:id', async (req, res) => {
-            const id = req.params.id;
-            const filter = { _id: ObjectId(id) };
-            const options = { upsert: true };
-            const updatedDoc = {
-                $set: {
-                    role: 'admin'
-                }
-            }
-            const result = await userCollections.updateOne(filter, updatedDoc, options);
-            res.send(result);
+        // app.put('/users/admin/:id', async (req, res) => {
+        //     const id = req.params.id;
+        //     const filter = { _id: ObjectId(id) };
+        //     const options = { upsert: true };
+        //     const updatedDoc = {
+        //         $set: {
+        //             role: 'admin'
+        //         }
+        //     }
+        //     const result = await userCollections.updateOne(filter, updatedDoc, options);
+        //     res.send(result);
 
 
-        });
+        // });
 
-        app.put('/users/verify/:id', async (req, res) => {
+        app.put('/users/verify/:id', veifyJWT,verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
             const options = { upsert: true };
